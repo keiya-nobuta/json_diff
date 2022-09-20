@@ -1,5 +1,76 @@
 import json
 
+def _match4(l1, l2):
+    i = j = 0
+    diffs = []
+    len1 = len(l1)
+    len2 = len(l2)
+    while True:
+        if i >= len1:
+            while j < len2:
+                diffs.append((-1, j))
+                j = j + 1
+            break
+        elif j >= len2:
+            while i < len1:
+                diffs.append((i, -1))
+                i = i + 1
+            break
+
+        if l1[i] == l2[j]:
+            i = i + 1
+            j = j + 1
+            continue
+
+        if i+1 < len1 and l1[i+1] == l2[j]:
+            diffs.append((i, -1))
+            i = i + 2
+            j = j + 1
+            continue
+
+        if j+1 < len2 and l1[i] == l2[j+1]:
+            diffs.append((i, j))
+            i = i + 1
+            j = j + 2
+            continue
+
+        if i+2 < len1 and l1[i+2] == l2[j]:
+            diffs.append((i, -1))
+            diffs.append((i+1, -1))
+            i = i + 3
+            j = j + 1
+            continue
+
+        if j+2 < len2 and l1[i] == l2[j+2]:
+            diffs.append((i, j))
+            diffs.append((i, j+1))
+            i = i + 1
+            j = j + 3
+            continue
+
+        if i+3 < len1 and l1[i+3] == l2[j]:
+            diffs.append((i, -1))
+            diffs.append((i+1, -1))
+            diffs.append((i+2, -1))
+            i = i + 4
+            j = j + 1
+            continue
+
+        if j+3 < len2 and l1[i] == l2[j+3]:
+            diffs.append((i, j))
+            diffs.append((i, j+1))
+            diffs.append((i, j+2))
+            i = i + 1
+            j = j + 4
+            continue
+
+        diffs.append((i, -1))
+        diffs.append((i, j))
+        i = i + 1
+        j = j + 1
+
+    return diffs
+
 def diff(json_a, json_b, prefix=''):
     diffs = {}
 
@@ -7,14 +78,27 @@ def diff(json_a, json_b, prefix=''):
         return diffs
 
     if type(json_a) == type(json_b) and type(json_a) is list:
-        for i, a in enumerate(json_a):
-            if i < len(json_b):
-                diffs.update(diff(a, json_b[i], f'{prefix}{i}:'))
-            else:
-                diffs[f'{prefix}{i}'] = {'-': a}
+        len1 = len(json_a)
+        len2 = len(json_b)
+        longer = len1 if len1 > len2 else len2
 
-        for j, b in enumerate(json_b[i+1:]):
-            diffs[f'{prefix}{i+1+j}'] = {'+': b}
+        k = len(json_a)
+        for i, j in _match4(json_a, json_b):
+            if i >= 0 and j >= 0:
+                diffs.setdefault(f'{prefix}{i}', {})
+                diffs[f'{prefix}{i}'].update({'+': json_b[j]})
+                k = k + 1
+                continue
+
+            if j < 0:
+                diffs.setdefault(f'{prefix}{i}', {})
+                diffs[f'{prefix}{i}'].update({'-': json_a[i]})
+                k = k - 1
+
+            if i < 0:
+                diffs.setdefault(f'{prefix}{k}', {})
+                diffs[f'{prefix}{k}'].update({'+': json_b[j]})
+                k = k + 1
 
     elif type(json_a) == type(json_b) and type(json_a) is dict:
         jb = json_b.copy()
